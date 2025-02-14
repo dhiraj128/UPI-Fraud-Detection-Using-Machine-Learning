@@ -1,0 +1,94 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.linear_model import LogisticRegression
+
+# Load the dataset
+file_path = r'C:\Users\dhira_5fqr2uc\Downloads\upi_fraud_detection.csv'
+data = pd.read_csv(file_path)
+
+# Drop or preprocess non-numeric columns
+data = data.drop(columns=['Transaction_ID', 'Date', 'Time'])  # Drop unnecessary columns
+
+# One-hot encode categorical columns
+data = pd.get_dummies(data, drop_first=True)
+
+# Define features and target
+X = data.drop(columns=['fraud'])  # Features
+y = data['fraud']  # Target
+
+# Split the dataset
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.15, random_state=0)
+
+# Verify the data contains only numeric values
+print(X_train.info())  # Ensure all columns are numeric
+
+# Scale numeric features
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+
+# Check the number of fraud and valid cases in the training data
+fraud = np.count_nonzero(y_train == 1)
+valid = np.count_nonzero(y_train == 0)
+print('Fraud cases in training data =', fraud)
+print('Valid cases in training data =', valid)
+
+# Initialize and train the Logistic Regression model
+LR_model = LogisticRegression(random_state=0)
+LR_model.fit(X_train_scaled, y_train)
+
+# Check the number of features the model expects
+print("Model expected features:", LR_model.n_features_in_)
+
+# Ensure the test data has the same number of features as the training data
+# Convert x_test to DataFrame if not already
+x_test_df = pd.DataFrame(X_test_scaled, columns=X_train.columns)
+
+# Reindex x_test_df with training columns, adding missing columns as zeros
+x_test_df = x_test_df.reindex(columns=X_train.columns, fill_value=0)
+
+# Convert all values to numeric and handle missing values
+x_test_df = x_test_df.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+# Double-check the column alignment
+print("Columns in X_train:", len(X_train.columns))
+print("Columns in x_test_df:", len(x_test_df.columns))
+
+# Standardize using the same scaler used for training
+x_test_scaled = scaler.transform(x_test_df)
+
+# Predict using the trained Logistic Regression model
+y_pred = LR_model.predict(x_test_scaled)
+
+# Display predictions
+print("Predictions:", y_pred)
+
+# Further evaluation (optional)
+from sklearn.metrics import classification_report, confusion_matrix
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+
+
+
+
+
+import joblib
+
+# Save the trained model
+joblib.dump(LR_model, 'fraud_detection_model.pkl')
+
+# Save the scaler
+joblib.dump(scaler, 'scaler.pkl')
+
+import joblib
+
+# Save the feature names
+joblib.dump(X_train.columns, 'feature_names.pkl')
